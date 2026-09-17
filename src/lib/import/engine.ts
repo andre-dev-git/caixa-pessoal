@@ -8,7 +8,10 @@ import {
   type PreviewRecord,
 } from "@/lib/import/schema";
 import { centsFromDecimal, normalizeDescription } from "@/lib/utils";
-import { installmentAmounts } from "@/lib/domain/projections";
+import {
+  resolveInstallmentCents,
+  validateInstallmentConsistency,
+} from "@/lib/domain/projections";
 
 async function loadCatalog() {
   const [categories, tags] = await Promise.all([
@@ -37,7 +40,7 @@ function zodToFieldErrors(err: {
 async function findDuplicate(
   record: ImportRecord
 ): Promise<PreviewRecord["duplicateOf"] | undefined> {
-  if (record.type === "category" || record.type === "tag") return undefined;
+  if (record.type === "tag") return undefined;
 
   if (
     record.type === "expense" ||
@@ -109,13 +112,11 @@ async function findDuplicate(
         })
       : null;
     if (!category) return undefined;
-    const amountCents = centsFromDecimal(record.amount);
     const norm = normalizeDescription(record.description);
 
     if (record.type === "subscription") {
       const all = await prisma.subscription.findMany({
         where: {
-          amountCents,
           periodicity: record.periodicity,
           categoryId: category.id,
         },
@@ -133,7 +134,6 @@ async function findDuplicate(
     } else {
       const all = await prisma.recurrence.findMany({
         where: {
-          amountCents,
           periodicity: record.periodicity,
           categoryId: category.id,
         },
@@ -158,19 +158,14 @@ export async function buildImportPreview(
   records: unknown[]
 ): Promise<ImportPreview> {
   const catalog = await loadCatalog();
-  const pendingCategories = new Set<string>();
   const pendingTags = new Set<string>();
   const invalidCategories = new Set<string>();
   const invalidTags = new Set<string>();
 
-  // First pass: collect explicit category/tag creates
+  // Tags podem ser criadas explicitamente no mesmo lote; categorias não.
   for (const raw of records) {
     if (!raw || typeof raw !== "object") continue;
     const t = (raw as { type?: string }).type;
-    if (t === "category" && "name" in (raw as object)) {
-      const name = String((raw as { name?: string }).name ?? "").toLowerCase();
-      if (name) pendingCategories.add(name);
-    }
     if (t === "tag" && "name" in (raw as object)) {
       const name = String((raw as { name?: string }).name ?? "").toLowerCase();
       if (name) pendingTags.add(name);
@@ -181,6 +176,29 @@ export async function buildImportPreview(
 
   for (let index = 0; index < records.length; index++) {
     const raw = records[index];
+
+    if (
+      raw &&
+      typeof raw === "object" &&
+      (raw as { type?: string }).type === "category"
+    ) {
+      previewRecords.push({
+        index,
+        raw,
+        recordType: "category",
+        valid: false,
+        errors: [
+          {
+            field: "type",
+            message:
+              "Importação não cria categorias. Cadastre a categoria antes e referencie-a pelo nome.",
+          },
+        ],
+        isDuplicate: false,
+      });
+      continue;
+    }
+
     const parsed = importRecordSchema.safeParse(raw);
     if (!parsed.success) {
       previewRecords.push({
@@ -200,7 +218,7 @@ export async function buildImportPreview(
     const record = parsed.data;
     const errors: FieldError[] = [];
 
-    if (record.type !== "category" && record.type !== "tag") {
+    if (record.type !== "tag") {
       const catName = record.category;
       if (catName == null || catName === "") {
         errors.push({
@@ -212,17 +230,12 @@ export async function buildImportPreview(
         if (record.unmapped_category) {
           invalidCategories.add(record.unmapped_category);
         }
-      } else {
-        const exists =
-          catalog.categoriesByName.has(catName.toLowerCase()) ||
-          pendingCategories.has(catName.toLowerCase());
-        if (!exists) {
-          errors.push({
-            field: "category",
-            message: `Categoria inexistente: ${catName}`,
-          });
-          invalidCategories.add(catName);
-        }
+      } else if (!catalog.categoriesByName.has(catName.toLowerCase())) {
+        errors.push({
+          field: "category",
+          message: `Categoria inexistente: ${catName}`,
+        });
+        invalidCategories.add(catName);
       }
 
       for (const tagName of record.tags ?? []) {
@@ -239,9 +252,19 @@ export async function buildImportPreview(
       }
     }
 
-    if (record.type === "category") {
-      if (catalog.categoriesByName.has(record.name.toLowerCase())) {
-        // duplicate category name — treat as soft duplicate
+    if (record.type === "installment") {
+      const consistencyError = validateInstallmentConsistency(
+        centsFromDecimal(record.total_amount),
+        record.total_installments,
+        record.installment_amount != null
+          ? centsFromDecimal(record.installment_amount)
+          : null
+      );
+      if (consistencyError) {
+        errors.push({
+          field: "installment_amount",
+          message: consistencyError,
+        });
       }
     }
 
@@ -307,10 +330,9 @@ export async function confirmImport(opts: {
     },
   });
 
-  // Process categories and tags first
+  // Tags primeiro; categorias nunca são criadas na importação
   const ordered = [...preview.records].sort((a, b) => {
-    const rank = (t: string) =>
-      t === "category" ? 0 : t === "tag" ? 1 : 2;
+    const rank = (t: string) => (t === "tag" ? 0 : 1);
     return rank(a.recordType) - rank(b.recordType);
   });
 
@@ -337,25 +359,6 @@ export async function confirmImport(opts: {
     const record = item.parsed;
 
     try {
-      if (record.type === "category") {
-        const existing = await prisma.category.findFirst({
-          where: { name: { equals: record.name } },
-        });
-        if (!existing) {
-          await prisma.category.create({
-            data: {
-              name: record.name,
-              description: record.description,
-              color: record.color,
-              importId: batch.id,
-            },
-          });
-          created.categories++;
-        }
-        accepted++;
-        continue;
-      }
-
       if (record.type === "tag") {
         const existing = await prisma.tag.findFirst({
           where: { name: { equals: record.name } },
@@ -420,14 +423,24 @@ export async function confirmImport(opts: {
 
       if (record.type === "installment") {
         const totalAmountCents = centsFromDecimal(record.total_amount);
-        const amounts = installmentAmounts(
-          totalAmountCents,
-          record.total_installments
-        );
-        const installmentCents =
+        const installmentCentsInput =
           record.installment_amount != null
             ? centsFromDecimal(record.installment_amount)
-            : amounts[0];
+            : null;
+        const consistencyError = validateInstallmentConsistency(
+          totalAmountCents,
+          record.total_installments,
+          installmentCentsInput
+        );
+        if (consistencyError) {
+          rejected++;
+          continue;
+        }
+        const installmentCents = resolveInstallmentCents(
+          totalAmountCents,
+          record.total_installments,
+          installmentCentsInput
+        );
 
         await prisma.installmentPlan.create({
           data: {

@@ -46,6 +46,53 @@ export function installmentAmounts(
   return amounts;
 }
 
+/**
+ * Valida consistência entre total, valor da parcela e quantidade.
+ * Aceita se a parcela for omitida, se parcela × N = total, ou se a parcela
+ * for igual à base (floor(total/N)), com a última absorvendo o resto.
+ */
+export function validateInstallmentConsistency(
+  totalAmountCents: number,
+  totalInstallments: number,
+  installmentCents?: number | null
+): string | null {
+  if (totalInstallments <= 0) {
+    return "Total de parcelas inválido";
+  }
+  if (totalAmountCents <= 0) {
+    return "Valor total inválido";
+  }
+  if (installmentCents == null) {
+    return null;
+  }
+  if (installmentCents <= 0) {
+    return "Valor da parcela inválido";
+  }
+
+  const exactProduct = installmentCents * totalInstallments;
+  if (exactProduct === totalAmountCents) {
+    return null;
+  }
+
+  const base = Math.floor(totalAmountCents / totalInstallments);
+  if (installmentCents === base) {
+    return null;
+  }
+
+  return `Valores inconsistentes: total ${totalAmountCents} centavos não corresponde a ${totalInstallments}×${installmentCents} centavos`;
+}
+
+export function resolveInstallmentCents(
+  totalAmountCents: number,
+  totalInstallments: number,
+  installmentCents?: number | null
+): number {
+  if (installmentCents != null) {
+    return installmentCents;
+  }
+  return installmentAmounts(totalAmountCents, totalInstallments)[0];
+}
+
 export interface InstallmentDerived {
   currentInstallment: number;
   occurredCount: number;

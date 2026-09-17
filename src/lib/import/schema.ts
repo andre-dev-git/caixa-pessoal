@@ -13,13 +13,6 @@ const amount = z.number().finite().positive("Valor deve ser positivo");
 
 const baseTags = z.array(z.string().min(1)).optional().default([]);
 
-export const categoryRecordSchema = z.object({
-  type: z.literal("category"),
-  name: z.string().min(1, "Nome da categoria é obrigatório"),
-  description: z.string().optional(),
-  color: z.string().optional(),
-});
-
 export const tagRecordSchema = z.object({
   type: z.literal("tag"),
   name: z.string().min(1, "Nome da tag é obrigatório"),
@@ -73,7 +66,6 @@ export const recurrenceRecordSchema = z.object({
 });
 
 export const importRecordSchema = z.discriminatedUnion("type", [
-  categoryRecordSchema,
   tagRecordSchema,
   entryRecordSchema,
   installmentRecordSchema,

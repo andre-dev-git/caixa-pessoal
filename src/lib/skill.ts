@@ -32,23 +32,24 @@ ${tagList}
 
 ## Regras obrigatórias
 
-1. Nunca invente categorias. Se não conseguir mapear com segurança para uma categoria da lista, use \`"category": null\` e preencha \`"unmapped_category"\` com o rótulo sugerido.
-2. Nunca invente tags. Só use tags da lista acima. Se não houver tag adequada, omita ou deixe \`tags: []\`.
+1. Nunca invente categorias e nunca emita registros \`type: "category"\`. Categorias devem existir previamente no sistema. Se não conseguir mapear com segurança para uma categoria da lista, use \`"category": null\` e preencha \`"unmapped_category"\` com o rótulo sugerido.
+2. Nunca invente tags. Só use tags da lista acima. Se não houver tag adequada, omita ou deixe \`tags: []\`. Se o usuário pedir explicitamente criar uma tag, use \`type: "tag"\`.
 3. Datas sempre em ISO 8601: \`YYYY-MM-DD\`.
 4. Valores numéricos em decimal com ponto (ex.: 49.90), positivos.
 5. Identifique corretamente o tipo de cada registro.
-6. Assinaturas iguais em meses diferentes = UMA assinatura (mesmo description + amount + periodicity + category).
-7. Parcelamentos: informe total_amount, total_installments, start_date; installment_amount é opcional.
+6. Assinaturas iguais em meses diferentes = UMA assinatura (mesmo description + periodicity + category; o valor pode mudar).
+7. Parcelamentos: informe total_amount, total_installments, start_date; installment_amount é opcional. Se informar parcela e total, eles devem ser consistentes (parcela × N ≈ total).
 8. Não invente dados. Se faltar informação obrigatória, sinalize no campo ausente em vez de chutar.
 
 ## Tipos de registro
 
-- \`category\` — criar categoria (só se o usuário pedir explicitamente)
 - \`tag\` — criar tag (só se o usuário pedir explicitamente)
 - \`expense\` | \`income\` | \`chargeback\` | \`refund\` — lançamentos pontuais
 - \`installment\` — compra parcelada
 - \`subscription\` — assinatura (sem data final)
 - \`recurrence\` — outro gasto recorrente
+
+**Não use \`type: "category"\`.** Categorias só via cadastro prévio no sistema.
 
 ## Schema de saída
 

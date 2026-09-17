@@ -4,7 +4,8 @@ import { z } from "zod";
 import { centsFromDecimal, isIsoDate } from "@/lib/utils";
 import {
   deriveInstallmentPlan,
-  installmentAmounts,
+  resolveInstallmentCents,
+  validateInstallmentConsistency,
 } from "@/lib/domain/projections";
 import { materializeDueEntries } from "@/lib/materialize";
 
@@ -56,14 +57,24 @@ export async function POST(req: NextRequest) {
   }
 
   const totalAmountCents = centsFromDecimal(parsed.data.totalAmount);
-  const amounts = installmentAmounts(
-    totalAmountCents,
-    parsed.data.totalInstallments
-  );
-  const installmentCents =
+  const installmentCentsInput =
     parsed.data.installmentAmount != null
       ? centsFromDecimal(parsed.data.installmentAmount)
-      : amounts[0];
+      : null;
+  const consistencyError = validateInstallmentConsistency(
+    totalAmountCents,
+    parsed.data.totalInstallments,
+    installmentCentsInput
+  );
+  if (consistencyError) {
+    return NextResponse.json({ error: consistencyError }, { status: 400 });
+  }
+
+  const installmentCents = resolveInstallmentCents(
+    totalAmountCents,
+    parsed.data.totalInstallments,
+    installmentCentsInput
+  );
 
   const plan = await prisma.installmentPlan.create({
     data: {
