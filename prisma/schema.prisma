@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries           Entry[]
+  installmentPlans  InstallmentPlan[]
+  subscriptions     Subscription[]
+  recurrences       Recurrence[]
+  importId          String?
+  importBatch       ImportBatch? @relation(fields: [importId], references: [id], onDelete: SetNull)
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries           EntryTag[]
+  installmentPlans  InstallmentPlanTag[]
+  subscriptions     SubscriptionTag[]
+  recurrences       RecurrenceTag[]
+  importId          String?
+  importBatch       ImportBatch? @relation(fields: [importId], references: [id], onDelete: SetNull)
+}
+
+model Entry {
+  id                 String    @id @default(cuid())
+  description        String
+  amountCents        Int
+  date               String
+  type               String
+  categoryId         String
+  category           Category  @relation(fields: [categoryId], references: [id])
+  origin             String    @default("manual")
+  importId           String?
+  importBatch        ImportBatch? @relation(fields: [importId], references: [id], onDelete: Cascade)
+  installmentPlanId  String?
+  installmentPlan    InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: Cascade)
+  subscriptionId     String?
+  subscription       Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  recurrenceId       String?
+  recurrence         Recurrence? @relation(fields: [recurrenceId], references: [id], onDelete: Cascade)
+  occurrenceNumber   Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tags EntryTag[]
+
+  @@index([date])
+  @@index([type])
+  @@index([categoryId])
+  @@index([importId])
+  @@index([installmentPlanId])
+  @@index([subscriptionId])
+  @@index([recurrenceId])
+}
+
+model EntryTag {
+  entryId String
+  tagId   String
+  entry   Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, tagId])
+}
+
+model InstallmentPlan {
+  id               String   @id @default(cuid())
+  description      String
+  totalAmountCents Int
+  installmentCents Int
+  startDate        String
+  totalInstallments Int
+  categoryId       String
+  category         Category @relation(fields: [categoryId], references: [id])
+  importId         String?
+  importBatch      ImportBatch? @relation(fields: [importId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tags    InstallmentPlanTag[]
+  entries Entry[]
+}
+
+model InstallmentPlanTag {
+  installmentPlanId String
+  tagId             String
+  installmentPlan   InstallmentPlan @relation(fields: [installmentPlanId], references: [id], onDelete: Cascade)
+  tag               Tag             @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([installmentPlanId, tagId])
+}
+
+model Subscription {
+  id           String   @id @default(cuid())
+  description  String
+  amountCents  Int
+  startDate    String
+  periodicity  String
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  status       String   @default("active")
+  cancelledAt  String?
+  importId     String?
+  importBatch  ImportBatch? @relation(fields: [importId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tags    SubscriptionTag[]
+  entries Entry[]
+}
+
+model SubscriptionTag {
+  subscriptionId String
+  tagId          String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  tag            Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([subscriptionId, tagId])
+}
+
+model Recurrence {
+  id           String   @id @default(cuid())
+  description  String
+  amountCents  Int
+  startDate    String
+  periodicity  String
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  status       String   @default("active")
+  cancelledAt  String?
+  importId     String?
+  importBatch  ImportBatch? @relation(fields: [importId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tags    RecurrenceTag[]
+  entries Entry[]
+}
+
+model RecurrenceTag {
+  recurrenceId String
+  tagId        String
+  recurrence   Recurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade)
+  tag          Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([recurrenceId, tagId])
+}
+
+model ImportBatch {
+  id               String   @id @default(cuid())
+  importedAt       DateTime @default(now())
+  format           String
+  fileName         String?
+  totalRecords     Int
+  acceptedCount    Int
+  rejectedCount    Int
+  createdSummary   String
+  status           String   @default("completed")
+  revertedAt       DateTime?
+
+  categories       Category[]
+  tags             Tag[]
+  entries          Entry[]
+  installmentPlans InstallmentPlan[]
+  subscriptions    Subscription[]
+  recurrences      Recurrence[]
+}
+
+model DashboardLayout {
+  id        String   @id @default("default")
+  layout    String
+  updatedAt DateTime @updatedAt
+}
