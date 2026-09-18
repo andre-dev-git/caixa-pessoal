@@ -28,6 +28,25 @@ async function loadCatalog() {
   };
 }
 
+type Catalog = Awaited<ReturnType<typeof loadCatalog>>;
+
+/** Resolve categoria pelo nome (case-insensitive) para o registro canônico do cadastro. */
+function resolveCategory(catalog: Catalog, name: string | null | undefined) {
+  if (!name) return undefined;
+  return catalog.categoriesByName.get(name.toLowerCase());
+}
+
+/** Resolve tags pelo nome (case-insensitive). Retorna null se alguma não existir. */
+function resolveTags(catalog: Catalog, names: string[]) {
+  const tags = [];
+  for (const name of names) {
+    const tag = catalog.tagsByName.get(name.toLowerCase());
+    if (!tag) return null;
+    tags.push(tag);
+  }
+  return tags;
+}
+
 function zodToFieldErrors(err: {
   issues: { path: PropertyKey[]; message: string }[];
 }): FieldError[] {
@@ -38,10 +57,9 @@ function zodToFieldErrors(err: {
 }
 
 async function findDuplicate(
+  catalog: Catalog,
   record: ImportRecord
 ): Promise<PreviewRecord["duplicateOf"] | undefined> {
-  if (record.type === "tag") return undefined;
-
   if (
     record.type === "expense" ||
     record.type === "income" ||
@@ -49,11 +67,7 @@ async function findDuplicate(
     record.type === "refund"
   ) {
     const amountCents = centsFromDecimal(record.amount);
-    const category = record.category
-      ? await prisma.category.findFirst({
-          where: { name: { equals: record.category } },
-        })
-      : null;
+    const category = resolveCategory(catalog, record.category);
     if (!category) return undefined;
 
     const match = await prisma.entry.findFirst({
@@ -79,11 +93,7 @@ async function findDuplicate(
   }
 
   if (record.type === "installment") {
-    const category = record.category
-      ? await prisma.category.findFirst({
-          where: { name: { equals: record.category } },
-        })
-      : null;
+    const category = resolveCategory(catalog, record.category);
     if (!category) return undefined;
     const totalAmountCents = centsFromDecimal(record.total_amount);
     const match = await prisma.installmentPlan.findFirst({
@@ -106,11 +116,7 @@ async function findDuplicate(
   }
 
   if (record.type === "subscription" || record.type === "recurrence") {
-    const category = record.category
-      ? await prisma.category.findFirst({
-          where: { name: { equals: record.category } },
-        })
-      : null;
+    const category = resolveCategory(catalog, record.category);
     if (!category) return undefined;
     const norm = normalizeDescription(record.description);
 
@@ -158,40 +164,31 @@ export async function buildImportPreview(
   records: unknown[]
 ): Promise<ImportPreview> {
   const catalog = await loadCatalog();
-  const pendingTags = new Set<string>();
   const invalidCategories = new Set<string>();
   const invalidTags = new Set<string>();
-
-  // Tags podem ser criadas explicitamente no mesmo lote; categorias não.
-  for (const raw of records) {
-    if (!raw || typeof raw !== "object") continue;
-    const t = (raw as { type?: string }).type;
-    if (t === "tag" && "name" in (raw as object)) {
-      const name = String((raw as { name?: string }).name ?? "").toLowerCase();
-      if (name) pendingTags.add(name);
-    }
-  }
 
   const previewRecords: PreviewRecord[] = [];
 
   for (let index = 0; index < records.length; index++) {
     const raw = records[index];
+    const rawType =
+      raw && typeof raw === "object" && "type" in raw
+        ? String((raw as { type: unknown }).type)
+        : "unknown";
 
-    if (
-      raw &&
-      typeof raw === "object" &&
-      (raw as { type?: string }).type === "category"
-    ) {
+    if (rawType === "category" || rawType === "tag") {
+      const entity = rawType === "category" ? "categorias" : "tags";
       previewRecords.push({
         index,
         raw,
-        recordType: "category",
+        recordType: rawType,
         valid: false,
         errors: [
           {
             field: "type",
-            message:
-              "Importação não cria categorias. Cadastre a categoria antes e referencie-a pelo nome.",
+            message: `Importação não cria ${entity}. Cadastre ${
+              rawType === "category" ? "a categoria" : "a tag"
+            } antes e referencie-a pelo nome.`,
           },
         ],
         isDuplicate: false,
@@ -204,10 +201,7 @@ export async function buildImportPreview(
       previewRecords.push({
         index,
         raw,
-        recordType:
-          raw && typeof raw === "object" && "type" in raw
-            ? String((raw as { type: unknown }).type)
-            : "unknown",
+        recordType: rawType,
         valid: false,
         errors: zodToFieldErrors(parsed.error),
         isDuplicate: false,
@@ -218,37 +212,32 @@ export async function buildImportPreview(
     const record = parsed.data;
     const errors: FieldError[] = [];
 
-    if (record.type !== "tag") {
-      const catName = record.category;
-      if (catName == null || catName === "") {
-        errors.push({
-          field: "category",
-          message: record.unmapped_category
-            ? `Categoria não mapeada: ${record.unmapped_category}`
-            : "Categoria é obrigatória",
-        });
-        if (record.unmapped_category) {
-          invalidCategories.add(record.unmapped_category);
-        }
-      } else if (!catalog.categoriesByName.has(catName.toLowerCase())) {
-        errors.push({
-          field: "category",
-          message: `Categoria inexistente: ${catName}`,
-        });
-        invalidCategories.add(catName);
+    const catName = record.category;
+    if (catName == null || catName === "") {
+      errors.push({
+        field: "category",
+        message: record.unmapped_category
+          ? `Categoria não mapeada: ${record.unmapped_category}`
+          : "Categoria é obrigatória",
+      });
+      if (record.unmapped_category) {
+        invalidCategories.add(record.unmapped_category);
       }
+    } else if (!catalog.categoriesByName.has(catName.toLowerCase())) {
+      errors.push({
+        field: "category",
+        message: `Categoria inexistente: ${catName}`,
+      });
+      invalidCategories.add(catName);
+    }
 
-      for (const tagName of record.tags ?? []) {
-        const exists =
-          catalog.tagsByName.has(tagName.toLowerCase()) ||
-          pendingTags.has(tagName.toLowerCase());
-        if (!exists) {
-          errors.push({
-            field: "tags",
-            message: `Tag inexistente: ${tagName}`,
-          });
-          invalidTags.add(tagName);
-        }
+    for (const tagName of record.tags ?? []) {
+      if (!catalog.tagsByName.has(tagName.toLowerCase())) {
+        errors.push({
+          field: "tags",
+          message: `Tag inexistente: ${tagName}`,
+        });
+        invalidTags.add(tagName);
       }
     }
 
@@ -269,7 +258,7 @@ export async function buildImportPreview(
     }
 
     const duplicateOf =
-      errors.length === 0 ? await findDuplicate(record) : undefined;
+      errors.length === 0 ? await findDuplicate(catalog, record) : undefined;
 
     previewRecords.push({
       index,
@@ -330,13 +319,10 @@ export async function confirmImport(opts: {
     },
   });
 
-  // Tags primeiro; categorias nunca são criadas na importação
-  const ordered = [...preview.records].sort((a, b) => {
-    const rank = (t: string) => (t === "tag" ? 0 : 1);
-    return rank(a.recordType) - rank(b.recordType);
-  });
+  // Categorias e tags nunca são criadas na importação
+  const catalog = await loadCatalog();
 
-  for (const item of ordered) {
+  for (const item of preview.records) {
     const action =
       opts.actions[item.index] ?? item.duplicateAction ?? "import";
 
@@ -359,39 +345,15 @@ export async function confirmImport(opts: {
     const record = item.parsed;
 
     try {
-      if (record.type === "tag") {
-        const existing = await prisma.tag.findFirst({
-          where: { name: { equals: record.name } },
-        });
-        if (!existing) {
-          await prisma.tag.create({
-            data: {
-              name: record.name,
-              color: record.color,
-              importId: batch.id,
-            },
-          });
-          created.tags++;
-        }
-        accepted++;
-        continue;
-      }
-
-      const category = await prisma.category.findFirst({
-        where: { name: { equals: record.category! } },
-      });
+      const category = resolveCategory(catalog, record.category);
       if (!category) {
         rejected++;
         continue;
       }
 
       const tagNames = record.tags ?? [];
-      const tags = await prisma.tag.findMany({
-        where: {
-          OR: tagNames.map((name) => ({ name: { equals: name } })),
-        },
-      });
-      if (tags.length !== tagNames.length) {
+      const tags = resolveTags(catalog, tagNames);
+      if (!tags) {
         rejected++;
         continue;
       }

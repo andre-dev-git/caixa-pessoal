@@ -1,7 +1,17 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,8 +27,8 @@ import {
 import { EntryFiltersBar } from "@/components/filters/entry-filters-bar";
 import {
   ENTRY_TYPE_LABELS,
-  ENTRY_TYPES,
   formatBRL,
+  formatDateBR,
   type EntryType,
 } from "@/lib/utils";
 
@@ -53,7 +63,6 @@ function EntriesInner() {
     description: "",
     amount: "",
     date: new Date().toISOString().slice(0, 10),
-    type: "expense",
     categoryId: "",
     tagIds: [] as string[],
   });
@@ -79,6 +88,20 @@ function EntriesInner() {
     load();
   }, [searchParams]);
 
+  const chartData = useMemo(() => {
+    const byDate = new Map<string, number>();
+    for (const e of entries) {
+      if (e.type !== "expense") continue;
+      byDate.set(e.date, (byDate.get(e.date) ?? 0) + e.amountCents);
+    }
+    return [...byDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, amountCents]) => ({
+        label: formatDateBR(date),
+        value: amountCents / 100,
+      }));
+  }, [entries]);
+
   async function create(e: React.FormEvent) {
     e.preventDefault();
     const res = await fetch("/api/entries", {
@@ -88,7 +111,7 @@ function EntriesInner() {
         description: form.description,
         amount: Number(form.amount),
         date: form.date,
-        type: form.type,
+        type: "expense",
         categoryId: form.categoryId,
         tagIds: form.tagIds,
       }),
@@ -121,7 +144,8 @@ function EntriesInner() {
       <div>
         <h1 className="text-2xl font-bold">Lançamentos</h1>
         <p className="text-slate-600">
-          Cadastro manual, busca e filtros. A exportação CSV respeita os filtros ativos.
+          Cadastro manual, busca e filtros. A exportação CSV respeita os filtros
+          ativos.
         </p>
       </div>
 
@@ -129,7 +153,40 @@ function EntriesInner() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Novo lançamento pontual</CardTitle>
+          <CardTitle>Gastos no período filtrado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartData.length === 0 ? (
+            <p className="py-12 text-center text-sm text-slate-500">
+              Sem despesas no filtro atual
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" />
+                <YAxis />
+                <Tooltip
+                  formatter={(v) => formatBRL(Number(v) * 100)}
+                  labelFormatter={(l) => String(l)}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  name="Despesas"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Novo lançamento</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={create} className="grid gap-3 md:grid-cols-3">
@@ -137,7 +194,9 @@ function EntriesInner() {
               <Label>Descrição</Label>
               <Input
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
                 required
               />
             </div>
@@ -162,23 +221,12 @@ function EntriesInner() {
               />
             </div>
             <div>
-              <Label>Tipo</Label>
-              <Select
-                value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
-              >
-                {ENTRY_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {ENTRY_TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
               <Label>Categoria</Label>
               <Select
                 value={form.categoryId}
-                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, categoryId: e.target.value })
+                }
                 required
               >
                 {categories.map((c) => (
@@ -196,7 +244,7 @@ function EntriesInner() {
                   return (
                     <label
                       key={t.id}
-                      className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${
+                      className={`cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors hover:border-slate-400 ${
                         checked
                           ? "border-emerald-600 bg-emerald-50 text-emerald-800"
                           : "border-slate-200"
@@ -204,7 +252,7 @@ function EntriesInner() {
                     >
                       <input
                         type="checkbox"
-                        className="mr-1"
+                        className="mr-1 cursor-pointer"
                         checked={checked}
                         onChange={(e) => {
                           setForm({
@@ -246,7 +294,9 @@ function EntriesInner() {
             <tbody>
               {entries.map((e) => (
                 <tr key={e.id} className="border-b border-slate-100">
-                  <td className="py-2 whitespace-nowrap">{e.date}</td>
+                  <td className="py-2 whitespace-nowrap">
+                    {formatDateBR(e.date)}
+                  </td>
                   <td>
                     <div>{e.description}</div>
                     <Badge className="mt-1">{kindBadge(e)}</Badge>
@@ -271,11 +321,14 @@ function EntriesInner() {
                       !e.subscriptionId &&
                       !e.recurrenceId && (
                         <Button
-                          size="sm"
-                          variant="destructive"
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Excluir lançamento"
+                          title="Excluir"
                           onClick={() => remove(e.id)}
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
                         >
-                          Excluir
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
                   </td>

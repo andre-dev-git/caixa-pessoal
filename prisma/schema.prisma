@@ -187,3 +187,22 @@ model DashboardLayout {
   layout    String
   updatedAt DateTime @updatedAt
 }
+
+/// Saldo único de dinheiro guardado (reserva/investimento).
+model SavingsBalance {
+  id          String   @id @default("default")
+  amountCents Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+/// Histórico de depósitos e resgates da reserva (para gráfico de evolução).
+model SavingsMovement {
+  id               String   @id @default(cuid())
+  date             String
+  /// Positivo = depósito; negativo = resgate (em centavos).
+  deltaCents       Int
+  balanceAfterCents Int
+  createdAt        DateTime @default(now())
+
+  @@index([date])
+}

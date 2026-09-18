@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
   Select,
   Badge,
 } from "@/components/ui/form";
-import { formatBRL } from "@/lib/utils";
+import { formatBRL, formatDateBR } from "@/lib/utils";
 
 interface Category {
   id: string;
@@ -230,8 +231,8 @@ export default function InstallmentsPage() {
               <div>
                 <h3 className="font-semibold">{p.description}</h3>
                 <p className="text-sm text-slate-600">
-                  {p.category.name} · início {p.startDate} · última parcela{" "}
-                  {p.derived.lastInstallmentMonth}
+                  {p.category.name} · início {formatDateBR(p.startDate)} ·
+                  última parcela {p.derived.lastInstallmentMonth}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Badge>
@@ -252,12 +253,14 @@ export default function InstallmentsPage() {
                   {formatBRL(p.installmentCents)} / parcela
                 </p>
                 <Button
-                  className="mt-2"
-                  size="sm"
-                  variant="destructive"
+                  className="mt-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Excluir parcelamento"
+                  title="Excluir"
                   onClick={() => remove(p.id)}
                 >
-                  Excluir
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>

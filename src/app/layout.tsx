@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Montserrat } from "next/font/google";
 import { Toaster } from "sonner";
 import { Sidebar } from "@/components/layout/sidebar";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
 });
 
@@ -25,8 +25,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
-      <body className="min-h-full bg-slate-50 text-slate-900 antialiased">
+    <html
+      lang="pt-BR"
+      className={`${montserrat.variable} ${geistMono.variable} h-full`}
+    >
+      <body className="min-h-full bg-slate-50 font-sans text-slate-900 antialiased">
         <div className="flex min-h-screen">
           <Sidebar />
           <main className="flex-1 overflow-auto">

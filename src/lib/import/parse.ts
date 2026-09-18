@@ -45,15 +45,8 @@ function parseTags(v: unknown): string[] | undefined {
 
 function rowToRecord(row: Record<string, unknown>): unknown {
   const type = String(emptyToUndefined(row.type) ?? "").trim();
-  if (type === "tag") {
-    return {
-      type,
-      name: emptyToUndefined(row.name) ?? emptyToUndefined(row.description),
-      color: emptyToUndefined(row.color),
-    };
-  }
-  if (type === "category") {
-    // Categorias não são criadas na importação; mantém o registro para rejeição explícita.
+  if (type === "tag" || type === "category") {
+    // Categorias/tags não são criadas na importação; mantém o registro para rejeição explícita.
     return {
       type,
       name: emptyToUndefined(row.name) ?? emptyToUndefined(row.description),

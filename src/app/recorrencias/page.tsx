@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/form";
 import {
   formatBRL,
+  formatDateBR,
   PERIODICITIES,
   PERIODICITY_LABELS,
   type Periodicity,
@@ -229,7 +231,7 @@ export default function RecurrencesPage() {
                 <p className="text-sm text-slate-600">
                   {s.category.name} ·{" "}
                   {PERIODICITY_LABELS[s.periodicity as Periodicity]} · desde{" "}
-                  {s.startDate}
+                  {formatDateBR(s.startDate)}
                 </p>
               </div>
               <div className="text-right">
@@ -241,11 +243,14 @@ export default function RecurrencesPage() {
                     </Button>
                   )}
                   <Button
-                    size="sm"
-                    variant="destructive"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Excluir recorrência"
+                    title="Excluir"
                     onClick={() => remove(s.id)}
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
                   >
-                    Excluir
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

@@ -11,7 +11,15 @@ npx tsx prisma/seed.ts
 npm run dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000).
+Abra [http://localhost:3000](http://localhost:3000) no modo de desenvolvimento.
+
+O servidor de produção sobe no logon (oculto) em [http://localhost:47193](http://localhost:47193). Na primeira vez, rode `npm run prod:install`. Depois de mudar código:
+
+```bash
+npm run prod:reset
+```
+
+Isso derruba o processo, faz o build e sobe de novo.
 
 ## Funcionalidades
 

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, CardTitle } from "@/components/ui/form";
-import { formatBRL } from "@/lib/utils";
+import { formatBRL, formatDateBR } from "@/lib/utils";
 
 interface Detail {
   id: string;
@@ -135,7 +135,7 @@ export default function ImportDetailPage() {
             <tbody>
               {data.entries.map((e) => (
                 <tr key={e.id} className="border-b border-slate-100">
-                  <td className="py-2">{e.date}</td>
+                  <td className="py-2">{formatDateBR(e.date)}</td>
                   <td>{e.description}</td>
                   <td>{e.category.name}</td>
                   <td>{formatBRL(e.amountCents)}</td>

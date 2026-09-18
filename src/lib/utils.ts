@@ -12,6 +12,19 @@ export function formatBRL(cents: number): string {
   }).format(cents / 100);
 }
 
+/** Formata data ISO YYYY-MM-DD para dd/MM/yyyy. */
+export function formatDateBR(isoDate: string): string {
+  if (!isoDate) return "";
+  const datePart = isoDate.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    const d = new Date(isoDate);
+    if (Number.isNaN(d.getTime())) return isoDate;
+    return d.toLocaleDateString("pt-BR");
+  }
+  const [y, m, d] = datePart.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 export function parseBRLToCents(value: string | number): number {
   if (typeof value === "number") {
     return Math.round(value * 100);
@@ -53,6 +66,11 @@ export const ENTRY_TYPES = [
 ] as const;
 
 export type EntryType = (typeof ENTRY_TYPES)[number];
+
+/** Tipos disponíveis no cadastro manual. Receita/estorno/reembolso não entram por aqui. */
+export const MANUAL_ENTRY_TYPES = ["expense"] as const;
+
+export type ManualEntryType = (typeof MANUAL_ENTRY_TYPES)[number];
 
 export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
   expense: "Despesa",

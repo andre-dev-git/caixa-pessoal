@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Input, Label, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { ENTRY_TYPE_LABELS, ENTRY_TYPES } from "@/lib/utils";
 
 interface Category {
   id: string;
@@ -29,7 +28,6 @@ export function EntryFiltersBar({
     to: searchParams.get("to") ?? "",
     categoryId: searchParams.get("categoryId") ?? "",
     tagIds: searchParams.get("tagIds") ?? "",
-    type: searchParams.get("type") ?? "",
     search: searchParams.get("search") ?? "",
     origin: searchParams.get("origin") ?? "",
     punctual: searchParams.get("punctual") === "1",
@@ -66,7 +64,6 @@ export function EntryFiltersBar({
       to: "",
       categoryId: "",
       tagIds: "",
-      type: "",
       search: "",
       origin: "",
       punctual: false,
@@ -108,20 +105,6 @@ export function EntryFiltersBar({
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Label>Tipo</Label>
-          <Select
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
-          >
-            <option value="">Todos</option>
-            {ENTRY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {ENTRY_TYPE_LABELS[t]}
               </option>
             ))}
           </Select>
@@ -169,9 +152,13 @@ export function EntryFiltersBar({
             ["recurrence", "Recorrente"],
           ] as const
         ).map(([key, label]) => (
-          <label key={key} className="flex items-center gap-2">
+          <label
+            key={key}
+            className="flex cursor-pointer items-center gap-2 hover:text-slate-900"
+          >
             <input
               type="checkbox"
+              className="cursor-pointer"
               checked={form[key]}
               onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
             />

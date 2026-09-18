@@ -14,11 +14,13 @@ import {
   Upload,
   Sparkles,
   FileText,
+  PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/reserva", label: "Reserva", icon: PiggyBank },
   { href: "/lancamentos", label: "Lançamentos", icon: ArrowLeftRight },
   { href: "/categorias", label: "Categorias", icon: FolderTree },
   { href: "/tags", label: "Tags", icon: Tags },
@@ -56,7 +58,7 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                 active
                   ? "bg-emerald-600 text-white"
                   : "text-slate-300 hover:bg-slate-800 hover:text-white"

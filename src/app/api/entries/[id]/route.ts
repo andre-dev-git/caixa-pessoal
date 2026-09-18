@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
-import { ENTRY_TYPES, centsFromDecimal, isIsoDate } from "@/lib/utils";
+import { centsFromDecimal, isIsoDate } from "@/lib/utils";
 
 const updateSchema = z.object({
   description: z.string().min(1),
   amount: z.number().positive(),
   date: z.string().refine(isIsoDate),
-  type: z.enum(ENTRY_TYPES),
+  type: z.literal("expense").optional().default("expense"),
   categoryId: z.string().min(1),
   tagIds: z.array(z.string()).optional().default([]),
 });
@@ -36,7 +36,7 @@ export async function PUT(
       description: parsed.data.description,
       amountCents: centsFromDecimal(parsed.data.amount),
       date: parsed.data.date,
-      type: parsed.data.type,
+      type: "expense",
       categoryId: parsed.data.categoryId,
       tags: {
         create: parsed.data.tagIds.map((tagId) => ({ tagId })),

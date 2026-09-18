@@ -1,11 +1,5 @@
-export function buildSkillText(categories: string[], tags: string[]): string {
-  const cats = categories.length
-    ? categories.map((c) => `- ${c}`).join("\n")
-    : "- (nenhuma categoria cadastrada ainda)";
-  const tagList = tags.length
-    ? tags.map((t) => `- ${t}`).join("\n")
-    : "- (nenhuma tag cadastrada ainda)";
-
+/** Skill estática: não embute categorias/tags. O catálogo é copiado à parte. */
+export function buildSkillText(): string {
   return `# Skill: Conversor Financeiro → JSON Caixa Pessoal
 
 Você converte dados financeiros brutos no JSON oficial de importação do sistema **Caixa Pessoal** (versão 1.0).
@@ -21,19 +15,33 @@ Você converte dados financeiros brutos no JSON oficial de importação do siste
 - Textos livres
 - Listas de lançamentos
 - Informações ditadas manualmente
+- **Lista atual de categorias e tags do sistema** (obrigatória em toda conversa)
 
-## Categorias permitidas (use EXCLUSIVAMENTE estas)
+## Catálogo obrigatório (categorias e tags)
 
-${cats}
+Antes de gerar o JSON, você **sempre** deve receber do usuário a lista atual de categorias e tags cadastradas no Caixa Pessoal.
 
-## Tags permitidas (use EXCLUSIVAMENTE estas)
+Se a lista ainda não foi enviada nesta conversa:
+1. Peça explicitamente a lista (o usuário copia pelo botão "Copiar categorias/tags" no sistema).
+2. **Não** gere o JSON de importação até receber o catálogo.
 
-${tagList}
+Use **exclusivamente** os nomes dessa lista ao preencher \`category\` e \`tags\` no JSON.
+A correspondência de nomes é case-insensitive.
+
+## Sugestão de novas categorias e tags
+
+Se algum lançamento não couber bem em nenhuma categoria/tag existente:
+1. **Não invente** o nome no campo \`category\` / \`tags\` do JSON de importação.
+2. Para categoria sem mapeamento seguro: use \`"category": null\` e \`"unmapped_category": "<sugestão>"\`.
+3. Para tags sem equivalente: deixe \`tags: []\` (não invente tags no JSON).
+4. **Além do JSON**, sugira claramente ao usuário novas categorias e/ou tags a cadastrar no sistema (nome sugerido + motivo breve), para ele criar no Caixa Pessoal e, se quiser, reenviar o catálogo atualizado.
+
+Lembrete: a importação do Caixa Pessoal **nunca cria** categorias nem tags. Só referencia as já cadastradas.
 
 ## Regras obrigatórias
 
-1. Nunca invente categorias e nunca emita registros \`type: "category"\`. Categorias devem existir previamente no sistema. Se não conseguir mapear com segurança para uma categoria da lista, use \`"category": null\` e preencha \`"unmapped_category"\` com o rótulo sugerido.
-2. Nunca invente tags. Só use tags da lista acima. Se não houver tag adequada, omita ou deixe \`tags: []\`. Se o usuário pedir explicitamente criar uma tag, use \`type: "tag"\`.
+1. Nunca invente categorias no JSON. Nunca emita \`type: "category"\`.
+2. Nunca invente tags no JSON. Nunca emita \`type: "tag"\`.
 3. Datas sempre em ISO 8601: \`YYYY-MM-DD\`.
 4. Valores numéricos em decimal com ponto (ex.: 49.90), positivos.
 5. Identifique corretamente o tipo de cada registro.
@@ -43,15 +51,14 @@ ${tagList}
 
 ## Tipos de registro
 
-- \`tag\` — criar tag (só se o usuário pedir explicitamente)
 - \`expense\` | \`income\` | \`chargeback\` | \`refund\` — lançamentos pontuais
 - \`installment\` — compra parcelada
 - \`subscription\` — assinatura (sem data final)
 - \`recurrence\` — outro gasto recorrente
 
-**Não use \`type: "category"\`.** Categorias só via cadastro prévio no sistema.
+**Não use \`type: "category"\` nem \`type: "tag"\`.** Ambos só via cadastro prévio no sistema.
 
-## Schema de saída
+## Schema de saída (JSON de importação)
 
 \`\`\`json
 {
@@ -112,8 +119,38 @@ ${tagList}
 
 Valores aceitos: \`weekly\`, \`monthly\`, \`quarterly\`, \`yearly\`.
 
-## Saída
+## Formato da resposta
 
-Responda **somente** com o JSON válido (sem markdown, sem comentários), pronto para colar na importação do Caixa Pessoal.
+1. Se faltar o catálogo: peça a lista e pare.
+2. Se houver sugestões de novas categorias/tags: liste-as em texto curto **antes** do JSON.
+3. Em seguida, responda com o JSON válido de importação (sem markdown envolvendo o JSON), pronto para colar no Caixa Pessoal.
+`;
+}
+
+/** Texto separado para colar no ChatGPT com o catálogo atual. */
+export function buildCatalogClipboardText(
+  categories: string[],
+  tags: string[]
+): string {
+  const cats = categories.length
+    ? categories.map((c) => `- ${c}`).join("\n")
+    : "- (nenhuma categoria cadastrada)";
+  const tagList = tags.length
+    ? tags.map((t) => `- ${t}`).join("\n")
+    : "- (nenhuma tag cadastrada)";
+
+  return `# Catálogo atual do Caixa Pessoal
+
+Use exclusivamente os nomes abaixo em \`category\` e \`tags\` do JSON.
+Correspondência case-insensitive.
+Se algo não couber, sugira novas categorias/tags para eu cadastrar no sistema — não invente nomes no JSON.
+
+## Categorias
+
+${cats}
+
+## Tags
+
+${tagList}
 `;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, Input, Label } from "@/components/ui/form";
@@ -121,11 +122,14 @@ export default function CategoriesPage() {
                   <td className="text-slate-500">{c.description}</td>
                   <td className="text-right">
                     <Button
-                      variant="destructive"
-                      size="sm"
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Excluir categoria"
+                      title="Excluir"
                       onClick={() => remove(c.id)}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
                     >
-                      Excluir
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </td>
                 </tr>

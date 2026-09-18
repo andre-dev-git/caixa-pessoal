@@ -19,12 +19,11 @@ export default function DocsPage() {
           <p>
             Envelope: <code>{`{ "version": "1.0", "records": [...] }`}</code>
           </p>
-          <p>Tipos de registro: tag, expense, income, chargeback, refund,
+          <p>Tipos de registro: expense, income, chargeback, refund,
             installment, subscription, recurrence.</p>
           <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{`{
   "version": "1.0",
   "records": [
-    { "type": "tag", "name": "mercado" },
     {
       "type": "expense",
       "description": "Supermercado",
@@ -85,8 +84,8 @@ export default function DocsPage() {
           <ul className="list-disc space-y-1 pl-5 text-slate-700">
             <li>Datas: YYYY-MM-DD (ISO 8601)</li>
             <li>Valores: número decimal positivo</li>
-            <li>Categorias devem existir previamente — importação nunca cria categoria</li>
-            <li>Tags inexistentes rejeitam o registro (exceto type tag)</li>
+            <li>Categorias e tags devem existir previamente — importação nunca as cria</li>
+            <li>Nomes de categoria/tag são resolvidos de forma case-insensitive</li>
             <li>Assinatura duplicada: descrição + categoria + periodicidade (valor pode mudar)</li>
             <li>Parcelamento: se informar parcela e total, devem ser consistentes</li>
             <li>Periodicidade: weekly | monthly | quarterly | yearly</li>
@@ -109,7 +108,6 @@ export default function DocsPage() {
             ficar vazias conforme o type da linha.
           </p>
           <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{`type,description,amount,date,category,tags,total_amount,installment_amount,start_date,total_installments,periodicity,status,name,color
-tag,,,,,,,,,,,,mercado,
 expense,Supermercado,150.40,2026-03-10,Alimentação,mercado,,,,,,,,
 installment,Notebook,,,Eletrônicos,,3600,300,2026-01-15,12,,,
 subscription,Netflix,55.90,,Streaming,,,,2026-01-05,,monthly,active,,`}</pre>

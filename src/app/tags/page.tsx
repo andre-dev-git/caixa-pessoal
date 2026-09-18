@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, Input, Label } from "@/components/ui/form";
@@ -100,12 +101,16 @@ export default function TagsPage() {
                   style={{ background: t.color || "#94a3b8" }}
                 />
                 {t.name}
-                <button
-                  className="text-red-600 hover:underline"
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Excluir tag"
+                  title="Excluir"
                   onClick={() => remove(t.id)}
+                  className="h-7 w-7 text-red-600 hover:bg-red-50 hover:text-red-700"
                 >
-                  ×
-                </button>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             ))}
             {items.length === 0 && (
